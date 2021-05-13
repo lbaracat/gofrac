@@ -32,6 +32,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 // World represents the game state.
@@ -93,13 +94,22 @@ func (w *World) Update() {
 func mandelbrot(c complex128) uint8 {
 	z := complex(0, 0)
 	var n uint8 = 0
-	for complexModulusSquared(z) <= 4 && n < maxIteration {
+	for complexModulusSquared(z) <= 4 && n < maxIteration { // See why complexModulusSquared is compared with 4, not 2, below
 		z = z*z + c
 		n++
 	}
 	return n
 }
 
+/*
+    The modulus of a complex number is the distance between the origin and the number in the complex plane
+	To get this, you square root the sum of the squares of the real and the imaginary parts (Pitagoras).
+
+	I made a little cheat...
+
+	complexModulusSquared avoids an "unnecessary" square root, and are compared with the square of the desired value
+	In this case, 2 is the desired value. Instead, complexModulusSquared is compared with 4 (2*2).
+*/
 func complexModulusSquared(c complex128) uint {
 	return uint(real(c)*real(c) + imag(c)*imag(c))
 }
@@ -118,18 +128,59 @@ func (w *World) Draw(pix []byte) {
 const (
 	screenWidth  = 640
 	screenHeight = 480
-	maxIteration = 30
+	maxIteration = 50
 	debug        = true
 	maxTPS       = 120
+	dx           = 0.04
+	dy           = 0.04
 )
 
 type Game struct {
 	world  *World
 	pixels []byte
+	keys   []ebiten.Key
 }
 
 func (g *Game) Update() error {
+	g.ParseKeyboard()
 	g.world.Update()
+	return nil
+}
+
+func (g *Game) ParseKeyboard() error {
+	g.keys = inpututil.PressedKeys()
+	for _, key := range g.keys {
+		switch key {
+		case ebiten.KeyArrowUp:
+			g.world.imagMin += dy
+			g.world.imagMax += dy
+		case ebiten.KeyArrowDown:
+			g.world.imagMin -= dy
+			g.world.imagMax -= dy
+		case ebiten.KeyArrowLeft:
+			g.world.realMin += dx
+			g.world.realMax += dx
+		case ebiten.KeyArrowRight:
+			g.world.realMin -= dx
+			g.world.realMax -= dx
+		case ebiten.KeyNumpadAdd:
+			g.world.realMin += dx
+			g.world.realMax -= dx
+			g.world.imagMin += dy
+			g.world.imagMax -= dy
+		case ebiten.KeyNumpadSubtract:
+			g.world.realMin -= dx
+			g.world.realMax += dx
+			g.world.imagMin -= dy
+			g.world.imagMax += dy
+		case ebiten.KeyHome:
+			g.world.realMin = -2
+			g.world.realMax = 1
+			g.world.imagMin = -1
+			g.world.imagMax = 1
+		}
+	}
+
 	return nil
 }
 
