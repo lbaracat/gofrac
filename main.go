@@ -58,12 +58,26 @@ func NewWorld(width, height int, maxInitLiveCells int) *World {
 }
 
 // init inits world with a random state.
-func (w *World) init(maxLiveCells int) {
-	for i := 0; i < maxLiveCells; i++ {
-		x := rand.Intn(w.width)
-		y := rand.Intn(w.height)
-		w.area[y*w.width+x] = true
+func (w *World) init(maxLiveCells int) { // Not so efficient?... draft?
+	for maxLiveCells > 0 {
+		for i := 0; i < maxLiveCells; i++ {
+			x := rand.Intn(w.width)
+			y := rand.Intn(w.height)
+			w.area[y*w.width+x] = true
+		}
+		for i := 0; i < len(w.area); i++ {
+			if w.area[i] {
+				maxLiveCells--
+			}
+		}
 	}
+}
+
+func mutation(state bool) bool {
+	if rand.Intn(999999) == 42 { // 42 is the answer for everything
+		return !state
+	}
+	return state
 }
 
 // Update game state by one tick.
@@ -95,6 +109,7 @@ func (w *World) Update() {
 				// becomes a live cell, as if by reproduction.
 				next[y*width+x] = true
 			}
+			next[y*width+x] = mutation(next[y*width+x])
 		}
 	}
 	w.area = next
@@ -107,12 +122,14 @@ func (w *World) Draw(pix []byte) {
 			pix[4*i] = 0xff
 			pix[4*i+1] = 0xff
 			pix[4*i+2] = 0xff
-			pix[4*i+3] = 0xff
+			//pix[4*i+3] = 0x7f
+			pix[4*i+3] = (pix[4*i+3] << 1) + 1
 		} else {
 			pix[4*i] = 0
 			pix[4*i+1] = 0
 			pix[4*i+2] = 0
-			pix[4*i+3] = 0
+			//pix[4*i+3] = 0
+			pix[4*i+3] = pix[4*i+3] >> 1
 		}
 	}
 }
@@ -153,9 +170,12 @@ func neighbourCount(a []bool, width, height, x, y int) int {
 }
 
 const (
-	screenWidth           = 800
-	screenHeight          = 500
-	percentageOfLiveCells = 80
+	screenWidth           = 850
+	screenHeight          = 550
+	percentageOfLiveCells = 50
+	debug                 = true
+	maxTPS                = 120
+	// mutationRate          = 0.00001 // Value in percentage of occurence
 )
 
 type Game struct {
@@ -175,9 +195,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.world.Draw(g.pixels)
 	screen.ReplacePixels(g.pixels)
 
-	msg := fmt.Sprintf("TPS: %0.2f", ebiten.CurrentTPS())
-	ebitenutil.DebugPrint(screen, msg)
-
+	if debug {
+		msg := fmt.Sprintf("TPS: %0.2f", ebiten.CurrentTPS())
+		ebitenutil.DebugPrint(screen, msg)
+	}
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
@@ -190,7 +211,12 @@ func main() {
 	}
 
 	ebiten.SetWindowSize(screenWidth*2, screenHeight*2)
-	ebiten.SetWindowTitle("Game of Life (Ebiten Demo)")
+	ebiten.SetWindowTitle("Game of Life (Ebiten Demo) Baracat mods")
+
+	if debug {
+		ebiten.SetMaxTPS(maxTPS)
+	}
+
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}
